@@ -56,7 +56,7 @@ bin/tip import-testing before
 php artisan serve
 ```
 
-1. Open [http://localhost:8000/admin/customers](http://localhost:8000/admin/customers) and show the Import action.
+1. Open [http://localhost:8000/admin/customers](http://localhost:8000/admin/customers) and show the Import action. The app queue is `sync`, so a CSV imported from that modal is processed before the modal closes.
 2. Open `tests/Feature/CustomerImportTest.php`.
 3. Run:
 
@@ -64,7 +64,7 @@ php artisan serve
 php artisan test --compact tests/Feature/CustomerImportTest.php
 ```
 
-The test fakes the local disk, uploads a CSV through the import action, maps the columns, and lets the queued `ImportCsv` batch run. The testing environment uses the sync queue, so those jobs run inside the action before the database assertions.
+The test fakes the local disk, stores the CSV, parses the rows by hand, creates an `Import`, and runs the queued `ImportCsv` job with `Bus::dispatchSync()` before asserting the `customers` table.
 
 ### After
 

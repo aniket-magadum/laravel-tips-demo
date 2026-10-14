@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use App\Enums\CustomerStatus;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -18,6 +20,10 @@ class CustomerForm
                     ->email()
                     ->required(),
                 TextInput::make('company'),
+                Select::make('status')
+                    ->options(CustomerStatus::class)
+                    ->required()
+                    ->native(false),
             ]);
     }
 }

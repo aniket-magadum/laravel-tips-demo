@@ -21,6 +21,8 @@ class CustomersTable
                     ->searchable(),
                 TextColumn::make('company')
                     ->searchable(),
+                TextColumn::make('status')
+                    ->badge(),
             ])
             ->defaultSort('name')
             ->filters([

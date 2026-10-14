@@ -38,6 +38,7 @@ Leave `php artisan serve` running. It follows the checked-out branch.
 | Date | Tip | Before | After |
 | --- | --- | --- | --- |
 | 2026-10-11 | [Import testing helpers](#2026-10-11-import-testing) | `tip/2026-10-11-import-testing/before` | `tip/2026-10-11-import-testing/after` |
+| 2026-10-14 | [getTabComponents()](#2026-10-14-get-tab-components) | `tip/2026-10-14-get-tab-components/before` | `tip/2026-10-14-get-tab-components/after` |
 
 ## 2026-10-11 import testing
 
@@ -80,3 +81,44 @@ php artisan test --compact tests/Feature/CustomerImportTest.php
 ```
 
 Row behaviour uses `CustomerImporter::test()->import([...])` with `assertImported()`, `assertSkipped()`, `assertHasErrors()`, `assertHasRowFailure()`, and `getRecord()`. A second test calls `ImportAction::fake()` and checks `assertDispatched()` / `assertNothingDispatched()`.
+
+## 2026-10-14 getTabComponents()
+
+Filament v5.10.2 lets an Edit or View page mix its own tabs with relation manager tabs, in any order, by overriding `getTabComponents()`. This is not the list-page `getTabs()` API. List filters still use `getTabs()` on `ListRecords`.
+
+Source: [filamentphp/filament#20734](https://github.com/filamentphp/filament/pull/20734), method in [`HasRelationManagers`](https://github.com/filamentphp/filament/blob/v5.10.2/packages/filament/src/Resources/Pages/Concerns/HasRelationManagers.php). Docs: [Managing relationships](https://filamentphp.com/docs/5.x/resources/managing-relationships#mixing-content-and-relation-manager-tabs).
+
+Both branches add a customer status (active, trial, churned) and a Notes relation manager with a count badge. The edit page turns on `hasCombinedRelationManagerTabsWithContent()`.
+
+### Before
+
+```bash
+bin/tip get-tab-components before
+php artisan serve
+```
+
+1. Open [http://localhost:8000/admin/customers](http://localhost:8000/admin/customers). The status column is a badge.
+2. Edit Ada Lovelace: [http://localhost:8000/admin/customers/1/edit](http://localhost:8000/admin/customers/1/edit).
+3. The tabs are **Edit**, then **Notes** with a count badge. The form is always the first tab, or the last one if you return `ContentTabPosition::After`. There is no way to insert another tab between them.
+4. Open `tests/Feature/CustomerTabsTest.php` and run:
+
+```bash
+php artisan test --compact tests/Feature/CustomerTabsTest.php
+```
+
+### After
+
+```bash
+bin/tip get-tab-components after
+```
+
+1. Edit Ada Lovelace again: [http://localhost:8000/admin/customers/1/edit](http://localhost:8000/admin/customers/1/edit).
+2. The page opens on **Status**. Its badge is green **Active**, and the tab shows account standing, company, and email. **Notes** (still with its count badge) sits between Status and **Edit**.
+3. Edit Katherine Johnson ([http://localhost:8000/admin/customers/3/edit](http://localhost:8000/admin/customers/3/edit)). The same tab is red **Churned**.
+4. Run the same test:
+
+```bash
+php artisan test --compact tests/Feature/CustomerTabsTest.php
+```
+
+`getTabComponents()` returns the Status tab, `getRelationManagerTabComponent('notes')`, and the form tab under the empty key `''`. The array order is the tab order.

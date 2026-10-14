@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v php >/dev/null 2>&1 || ! command -v composer >/dev/null 2>&1; then
+    echo "PHP 8.4+ and Composer are required." >&2
+    exit 1
+fi
+
+php_major="$(php -r 'echo PHP_MAJOR_VERSION;')"
+php_minor="$(php -r 'echo PHP_MINOR_VERSION;')"
+
+if (( php_major < 8 || (php_major == 8 && php_minor < 4) )); then
+    echo "PHP 8.4+ is required (found $(php -r 'echo PHP_VERSION;'))." >&2
+    exit 1
+fi
+
+composer install
+
+if [[ ! -f .env ]]; then
+    cp .env.example .env
+fi
+
+if ! grep -q '^APP_KEY=base64:' .env; then
+    php artisan key:generate --ansi
+fi
+
+mkdir -p database
+touch database/database.sqlite
+
+php artisan migrate:fresh --seed --force --no-interaction
+
+if command -v npm >/dev/null 2>&1; then
+    npm install
+    npm run build
+else
+    echo "npm was not found. The admin panel still works; the welcome page needs a built Vite bundle." >&2
+fi
+
+cat <<'EOF'
+
+Ready.
+
+  php artisan serve
+  http://localhost:8000/admin
+
+  email     admin@example.com
+  password  password
+
+Switch a tip with: bin/tip <slug> before|after
+EOF

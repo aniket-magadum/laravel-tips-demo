@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: bin/tip <slug> before|after" >&2
+    echo "Example: bin/tip import-testing before" >&2
+    exit 1
+fi
+
+slug="$1"
+side="$2"
+
+if [[ "$side" != "before" && "$side" != "after" ]]; then
+    echo "The second argument must be 'before' or 'after'." >&2
+    exit 1
+fi
+
+if [[ ! -d vendor ]]; then
+    echo "Dependencies are missing. Run bin/bootstrap first." >&2
+    exit 1
+fi
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Working tree has uncommitted changes. Commit or stash them before switching tips." >&2
+    exit 1
+fi
+
+mapfile -t matches < <(
+    git for-each-ref --format='%(refname:short)' refs/heads refs/remotes/origin \
+        | sed 's|^origin/||' \
+        | grep -E "^tip/${slug}/${side}$|^tip/[0-9]{4}-[0-9]{2}-[0-9]{2}-${slug}/${side}$" \
+        | sort -u
+)
+
+if [[ ${#matches[@]} -eq 0 ]]; then
+    echo "No branch found for '${slug}' (${side})." >&2
+    echo "Expected tip/<date>-${slug}/${side}" >&2
+    exit 1
+fi
+
+if [[ ${#matches[@]} -gt 1 ]]; then
+    echo "More than one branch matches '${slug}' (${side}):" >&2
+    printf '  %s\n' "${matches[@]}" >&2
+    exit 1
+fi
+
+branch="${matches[0]}"
+
+if git show-ref --verify --quiet "refs/heads/${branch}"; then
+    git switch "$branch"
+elif git show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
+    git switch --track "origin/${branch}"
+else
+    echo "Could not check out ${branch}." >&2
+    exit 1
+fi
+
+php artisan migrate:fresh --seed --force --no-interaction
+php artisan optimize:clear --no-interaction >/dev/null
+
+cat <<EOF
+
+On ${branch}
+Database reset and seeded.
+
+  http://localhost:8000/admin
+  admin@example.com / password
+
+Start the server with: php artisan serve
+EOF

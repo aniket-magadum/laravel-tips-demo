@@ -27,11 +27,18 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
-mapfile -t matches < <(
+# macOS /bin/bash is 3.2: no mapfile, and "${array[@]}" is unset when empty.
+matches=()
+while IFS= read -r line; do
+    if [[ -z "$line" ]]; then
+        continue
+    fi
+    matches[${#matches[@]}]="$line"
+done < <(
     git for-each-ref --format='%(refname:short)' refs/heads refs/remotes/origin \
         | sed 's|^origin/||' \
         | grep -E "^tip/${slug}/${side}$|^tip/[0-9]{4}-[0-9]{2}-[0-9]{2}-${slug}/${side}$" \
-        | sort -u
+        | sort -u || true
 )
 
 if [[ ${#matches[@]} -eq 0 ]]; then
